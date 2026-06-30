@@ -48,7 +48,9 @@ class _TokenBucket:
     def _refill(self) -> None:
         now = time.monotonic()
         elapsed = now - self._last_refill
-        self._tokens = min(self.capacity, self._tokens + elapsed * (self.capacity / 60.0))
+        self._tokens = min(
+            self.capacity, self._tokens + elapsed * (self.capacity / 60.0)
+        )
         self._last_refill = now
 
     async def acquire(self, amount: float) -> None:
@@ -109,7 +111,9 @@ class ClientConfig:
 class LLMClient:
     """Async chat-completion client. One instance per provider/model."""
 
-    def __init__(self, config: ClientConfig, *, metrics: MetricsCollector | None = None) -> None:
+    def __init__(
+        self, config: ClientConfig, *, metrics: MetricsCollector | None = None
+    ) -> None:
         self.config = config
         self.metrics = metrics
         self._rpm_bucket = _TokenBucket(config.rpm)
@@ -206,7 +210,10 @@ class LLMClient:
         for attempt in range(self.config.max_retries + 1):
             try:
                 resp = await self._http.post("/v1/chat/completions", json=payload)
-                if resp.status_code >= 400 and resp.status_code not in RETRYABLE_STATUS_CODES:
+                if (
+                    resp.status_code >= 400
+                    and resp.status_code not in RETRYABLE_STATUS_CODES
+                ):
                     # Non-retryable client/server error (4xx other than 429, etc).
                     # Fail immediately - retrying a 400 burns the budget for nothing.
                     resp.raise_for_status()

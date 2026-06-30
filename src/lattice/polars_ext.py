@@ -73,7 +73,8 @@ def _field_dtype(annotation: Any) -> pl.DataType:
 
 def _struct_dtype(schema: type[BaseModel]) -> pl.Struct:
     fields = {
-        name: _field_dtype(info.annotation) for name, info in schema.model_fields.items()
+        name: _field_dtype(info.annotation)
+        for name, info in schema.model_fields.items()
     }
     return pl.Struct(fields)
 

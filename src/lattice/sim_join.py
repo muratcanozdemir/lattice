@@ -43,17 +43,27 @@ FloatArray = npt.NDArray[np.float64]
 
 
 def _validate_inputs(
-    left: pl.DataFrame, right: pl.DataFrame, left_embedding_col: str, right_embedding_col: str, k: int
+    left: pl.DataFrame,
+    right: pl.DataFrame,
+    left_embedding_col: str,
+    right_embedding_col: str,
+    k: int,
 ) -> tuple[FloatArray, FloatArray] | None:
     if k < 1:
         raise ValueError(f"k must be >= 1, got {k}")
     if left.height == 0 or right.height == 0:
         return None
-    left_emb: FloatArray = np.asarray(left.get_column(left_embedding_col).to_list(), dtype=np.float64)
+    left_emb: FloatArray = np.asarray(
+        left.get_column(left_embedding_col).to_list(), dtype=np.float64
+    )
     right_emb: FloatArray = np.asarray(
         right.get_column(right_embedding_col).to_list(), dtype=np.float64
     )
-    if left_emb.ndim != 2 or right_emb.ndim != 2 or left_emb.shape[1] != right_emb.shape[1]:
+    if (
+        left_emb.ndim != 2
+        or right_emb.ndim != 2
+        or left_emb.shape[1] != right_emb.shape[1]
+    ):
         raise ValueError(
             f"embedding dimension mismatch: left {left_emb.shape} vs right {right_emb.shape}"
         )
@@ -62,7 +72,9 @@ def _validate_inputs(
 
 def _unit(vectors: FloatArray) -> FloatArray:
     norms = np.linalg.norm(vectors, axis=1, keepdims=True)
-    result: FloatArray = np.divide(vectors, norms, out=np.zeros_like(vectors), where=norms != 0)
+    result: FloatArray = np.divide(
+        vectors, norms, out=np.zeros_like(vectors), where=norms != 0
+    )
     return result
 
 
@@ -83,9 +95,14 @@ def _assemble(
         idxs = top_idx_per_row[i]
         sims = top_sim_per_row[i]
         for ridx, sim in zip(idxs, sims, strict=True):
-            combined: dict[str, object] = {f"{left_prefix}{key}": val for key, val in ldict.items()}
+            combined: dict[str, object] = {
+                f"{left_prefix}{key}": val for key, val in ldict.items()
+            }
             combined.update(
-                {f"{right_prefix}{key}": val for key, val in right_dicts[int(ridx)].items()}
+                {
+                    f"{right_prefix}{key}": val
+                    for key, val in right_dicts[int(ridx)].items()
+                }
             )
             combined[similarity_col] = float(sim)
             out_rows.append(combined)
@@ -120,7 +137,9 @@ def _sim_join_exact_chunked(
         end = min(start + chunk_size, n_right)
         chunk = right_unit[start:end]  # (chunk_n, dim)
         chunk_sims = left_unit @ chunk.T  # (n_left, chunk_n)
-        chunk_idx = np.arange(start, end, dtype=np.int64)[None, :].repeat(n_left, axis=0)
+        chunk_idx = np.arange(start, end, dtype=np.int64)[None, :].repeat(
+            n_left, axis=0
+        )
 
         merged_sims = np.concatenate([best_sims, chunk_sims], axis=1)
         merged_idx = np.concatenate([best_idx, chunk_idx], axis=1)
@@ -137,7 +156,9 @@ def _sim_join_exact_chunked(
     sorted_sims = np.take_along_axis(best_sims, order, axis=1)
     sorted_idx = np.take_along_axis(best_idx, order, axis=1)
 
-    return [sorted_idx[i] for i in range(n_left)], [sorted_sims[i] for i in range(n_left)]
+    return [sorted_idx[i] for i in range(n_left)], [
+        sorted_sims[i] for i in range(n_left)
+    ]
 
 
 def _sim_join_approximate(
@@ -146,7 +167,11 @@ def _sim_join_approximate(
     *,
     k: int,
 ) -> tuple[list[npt.NDArray[np.int64]], list[FloatArray]]:
-    from usearch.index import BatchMatches, Index, Matches  # local: only needed for this path
+    from usearch.index import (
+        BatchMatches,
+        Index,
+        Matches,
+    )  # local: only needed for this path
 
     n_right = right_emb.shape[0]
     eff_k = min(k, n_right)
@@ -168,7 +193,9 @@ def _sim_join_approximate(
         matches_list = [matches]
 
     top_idx_per_row = [np.asarray(m.keys, dtype=np.int64) for m in matches_list]
-    top_sim_per_row = [1.0 - np.asarray(m.distances, dtype=np.float64) for m in matches_list]
+    top_sim_per_row = [
+        1.0 - np.asarray(m.distances, dtype=np.float64) for m in matches_list
+    ]
     return top_idx_per_row, top_sim_per_row
 
 
@@ -202,13 +229,17 @@ def sim_join(
     Zero vectors get similarity 0.0 against everything rather than
     raising or producing NaN, in both methods.
     """
-    validated = _validate_inputs(left, right, left_embedding_col, right_embedding_col, k)
+    validated = _validate_inputs(
+        left, right, left_embedding_col, right_embedding_col, k
+    )
     if validated is None:
         return pl.DataFrame()
     left_emb, right_emb = validated
 
     if method == "exact":
-        top_idx, top_sim = _sim_join_exact_chunked(left_emb, right_emb, k=k, chunk_size=chunk_size)
+        top_idx, top_sim = _sim_join_exact_chunked(
+            left_emb, right_emb, k=k, chunk_size=chunk_size
+        )
     elif method == "approximate":
         top_idx, top_sim = _sim_join_approximate(left_emb, right_emb, k=k)
     else:

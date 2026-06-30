@@ -129,6 +129,9 @@ async def test_concurrency_bound_is_respected():
             import asyncio
 
             await asyncio.gather(
-                *[client.acomplete([{"role": "user", "content": "hi"}]) for _ in range(6)]
+                *[
+                    client.acomplete([{"role": "user", "content": "hi"}])
+                    for _ in range(6)
+                ]
             )
         assert max_seen <= 2

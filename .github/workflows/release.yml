@@ -22,7 +22,7 @@ jobs:
         run: uv sync --all-extras --group dev
 
       - name: Build package wheels
-        run: uv run python -m build --wheel --outdir dist
+        run: uv build
 
       - name: Upload build artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

@@ -35,8 +35,12 @@ class PipelineMetrics:
     cost_complete: bool = True
 
     def __str__(self) -> str:
-        cost = f"${self.total_cost_usd:.4f}" if self.cost_complete else (
-            f"${self.total_cost_usd:.4f} (incomplete - some calls had no pricing)"
+        cost = (
+            f"${self.total_cost_usd:.4f}"
+            if self.cost_complete
+            else (
+                f"${self.total_cost_usd:.4f} (incomplete - some calls had no pricing)"
+            )
         )
         return (
             f"PipelineMetrics(calls={self.num_calls}, failed={self.num_failed_calls}, "

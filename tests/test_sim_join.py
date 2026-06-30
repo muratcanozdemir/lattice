@@ -14,7 +14,11 @@ def test_sim_join_finds_exact_match_as_top_result():
         }
     )
     result = sim_join(
-        left, right, left_embedding_col="embedding", right_embedding_col="embedding", k=2
+        left,
+        right,
+        left_embedding_col="embedding",
+        right_embedding_col="embedding",
+        k=2,
     )
     assert result.height == 2
     # exact match (id 10) should be first, similarity ~1.0
@@ -26,9 +30,15 @@ def test_sim_join_finds_exact_match_as_top_result():
 
 def test_sim_join_respects_k():
     left = pl.DataFrame({"id": [1], "embedding": [[1.0, 0.0]]})
-    right = pl.DataFrame({"id": [10, 11, 12], "embedding": [[1.0, 0.0], [0.9, 0.1], [0.1, 0.9]]})
+    right = pl.DataFrame(
+        {"id": [10, 11, 12], "embedding": [[1.0, 0.0], [0.9, 0.1], [0.1, 0.9]]}
+    )
     result = sim_join(
-        left, right, left_embedding_col="embedding", right_embedding_col="embedding", k=1
+        left,
+        right,
+        left_embedding_col="embedding",
+        right_embedding_col="embedding",
+        k=1,
     )
     assert result.height == 1
     assert result["right_id"].to_list() == [10]
@@ -38,7 +48,11 @@ def test_sim_join_caps_k_at_right_height():
     left = pl.DataFrame({"id": [1], "embedding": [[1.0, 0.0]]})
     right = pl.DataFrame({"id": [10], "embedding": [[1.0, 0.0]]})
     result = sim_join(
-        left, right, left_embedding_col="embedding", right_embedding_col="embedding", k=5
+        left,
+        right,
+        left_embedding_col="embedding",
+        right_embedding_col="embedding",
+        k=5,
     )
     assert result.height == 1  # only one right row exists, can't return 5
 
@@ -47,7 +61,11 @@ def test_sim_join_handles_zero_vector_without_raising():
     left = pl.DataFrame({"id": [1], "embedding": [[0.0, 0.0]]})
     right = pl.DataFrame({"id": [10], "embedding": [[1.0, 0.0]]})
     result = sim_join(
-        left, right, left_embedding_col="embedding", right_embedding_col="embedding", k=1
+        left,
+        right,
+        left_embedding_col="embedding",
+        right_embedding_col="embedding",
+        k=1,
     )
     assert result["similarity"].to_list() == [0.0]
 
@@ -56,7 +74,11 @@ def test_sim_join_prefixes_columns_to_avoid_collision():
     left = pl.DataFrame({"id": [1], "label": ["L"], "embedding": [[1.0, 0.0]]})
     right = pl.DataFrame({"id": [10], "label": ["R"], "embedding": [[1.0, 0.0]]})
     result = sim_join(
-        left, right, left_embedding_col="embedding", right_embedding_col="embedding", k=1
+        left,
+        right,
+        left_embedding_col="embedding",
+        right_embedding_col="embedding",
+        k=1,
     )
     assert set(result.columns) == {
         "left_id",
@@ -75,21 +97,37 @@ def test_sim_join_rejects_invalid_k():
     left = pl.DataFrame({"embedding": [[1.0]]})
     right = pl.DataFrame({"embedding": [[1.0]]})
     with pytest.raises(ValueError):
-        sim_join(left, right, left_embedding_col="embedding", right_embedding_col="embedding", k=0)
+        sim_join(
+            left,
+            right,
+            left_embedding_col="embedding",
+            right_embedding_col="embedding",
+            k=0,
+        )
 
 
 def test_sim_join_rejects_dimension_mismatch():
     left = pl.DataFrame({"embedding": [[1.0, 0.0]]})
     right = pl.DataFrame({"embedding": [[1.0, 0.0, 0.0]]})
     with pytest.raises(ValueError):
-        sim_join(left, right, left_embedding_col="embedding", right_embedding_col="embedding", k=1)
+        sim_join(
+            left,
+            right,
+            left_embedding_col="embedding",
+            right_embedding_col="embedding",
+            k=1,
+        )
 
 
 def test_sim_join_empty_input_returns_empty_frame():
     left = pl.DataFrame({"embedding": []}, schema={"embedding": pl.List(pl.Float64)})
     right = pl.DataFrame({"embedding": [[1.0]]})
     result = sim_join(
-        left, right, left_embedding_col="embedding", right_embedding_col="embedding", k=1
+        left,
+        right,
+        left_embedding_col="embedding",
+        right_embedding_col="embedding",
+        k=1,
     )
     assert result.height == 0
 
@@ -107,15 +145,25 @@ def test_sim_join_chunked_matches_unchunked_with_tiny_chunk_size():
         }
     )
     full = sim_join(
-        left, right, left_embedding_col="embedding", right_embedding_col="embedding",
-        k=5, chunk_size=1000,
+        left,
+        right,
+        left_embedding_col="embedding",
+        right_embedding_col="embedding",
+        k=5,
+        chunk_size=1000,
     )
     tiny_chunks = sim_join(
-        left, right, left_embedding_col="embedding", right_embedding_col="embedding",
-        k=5, chunk_size=3,  # forces 8 merge rounds for 23 right rows
+        left,
+        right,
+        left_embedding_col="embedding",
+        right_embedding_col="embedding",
+        k=5,
+        chunk_size=3,  # forces 8 merge rounds for 23 right rows
     )
     assert full["right_id"].to_list() == tiny_chunks["right_id"].to_list()
-    assert full["similarity"].to_list() == pytest.approx(tiny_chunks["similarity"].to_list())
+    assert full["similarity"].to_list() == pytest.approx(
+        tiny_chunks["similarity"].to_list()
+    )
 
 
 def test_sim_join_chunk_boundary_does_not_lose_the_best_match():
@@ -130,8 +178,12 @@ def test_sim_join_chunk_boundary_does_not_lose_the_best_match():
     ]
     right = pl.DataFrame({"id": list(range(51)), "embedding": right_vecs})
     result = sim_join(
-        left, right, left_embedding_col="embedding", right_embedding_col="embedding",
-        k=1, chunk_size=4,
+        left,
+        right,
+        left_embedding_col="embedding",
+        right_embedding_col="embedding",
+        k=1,
+        chunk_size=4,
     )
     assert result["right_id"].to_list() == [0]
     assert result["similarity"].to_list()[0] == pytest.approx(1.0)
@@ -142,8 +194,12 @@ def test_sim_join_rejects_unknown_method():
     right = pl.DataFrame({"embedding": [[1.0]]})
     with pytest.raises(ValueError):
         sim_join(
-            left, right, left_embedding_col="embedding", right_embedding_col="embedding",
-            k=1, method="magic",  # type: ignore[arg-type]
+            left,
+            right,
+            left_embedding_col="embedding",
+            right_embedding_col="embedding",
+            k=1,
+            method="magic",  # type: ignore[arg-type]
         )
 
 
@@ -156,8 +212,12 @@ def test_sim_join_approximate_finds_exact_match_as_top_result():
         }
     )
     result = sim_join(
-        left, right, left_embedding_col="embedding", right_embedding_col="embedding",
-        k=2, method="approximate",
+        left,
+        right,
+        left_embedding_col="embedding",
+        right_embedding_col="embedding",
+        k=2,
+        method="approximate",
     )
     assert result.height == 2
     assert result["right_id"].to_list()[0] == 10
@@ -178,16 +238,25 @@ def test_sim_join_approximate_agrees_with_exact_on_well_separated_clusters():
     right = pl.DataFrame({"id": list(range(n_right)), "embedding": right_vecs.tolist()})
 
     exact = sim_join(
-        left, right, left_embedding_col="embedding", right_embedding_col="embedding", k=1
+        left,
+        right,
+        left_embedding_col="embedding",
+        right_embedding_col="embedding",
+        k=1,
     )
     approx = sim_join(
-        left, right, left_embedding_col="embedding", right_embedding_col="embedding",
-        k=1, method="approximate",
+        left,
+        right,
+        left_embedding_col="embedding",
+        right_embedding_col="embedding",
+        k=1,
+        method="approximate",
     )
     # top-1 nearest neighbor should agree for at least most of the 5 queries
     # on a dataset this small - not asserting all 5 to avoid HNSW-recall flakiness.
     agreement = sum(
-        a == b for a, b in zip(exact["right_id"].to_list(), approx["right_id"].to_list())
+        a == b
+        for a, b in zip(exact["right_id"].to_list(), approx["right_id"].to_list())
     )
     assert agreement >= 4
 
@@ -196,8 +265,12 @@ def test_sim_join_approximate_caps_k_at_right_height():
     left = pl.DataFrame({"id": [1], "embedding": [[1.0, 0.0]]})
     right = pl.DataFrame({"id": [10], "embedding": [[1.0, 0.0]]})
     result = sim_join(
-        left, right, left_embedding_col="embedding", right_embedding_col="embedding",
-        k=5, method="approximate",
+        left,
+        right,
+        left_embedding_col="embedding",
+        right_embedding_col="embedding",
+        k=5,
+        method="approximate",
     )
     assert result.height == 1
 
@@ -205,16 +278,20 @@ def test_sim_join_approximate_caps_k_at_right_height():
 def test_sim_join_approximate_handles_multiple_left_rows():
     """Exercises the BatchMatches code path (n_left > 1), not just the
     single-query Matches path."""
-    left = pl.DataFrame(
-        {"id": [1, 2], "embedding": [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]}
-    )
+    left = pl.DataFrame({"id": [1, 2], "embedding": [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]})
     right = pl.DataFrame(
         {"id": [10, 11], "embedding": [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]}
     )
     result = sim_join(
-        left, right, left_embedding_col="embedding", right_embedding_col="embedding",
-        k=1, method="approximate",
+        left,
+        right,
+        left_embedding_col="embedding",
+        right_embedding_col="embedding",
+        k=1,
+        method="approximate",
     )
     assert result.height == 2
-    by_left = dict(zip(result["left_id"].to_list(), result["right_id"].to_list(), strict=True))
+    by_left = dict(
+        zip(result["left_id"].to_list(), result["right_id"].to_list(), strict=True)
+    )
     assert by_left == {1: 10, 2: 11}

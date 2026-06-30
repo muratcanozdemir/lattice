@@ -47,7 +47,9 @@ def _write_manifest(root: Path, table: str, manifest: SnapshotManifest) -> None:
     path = _manifest_path(root, table)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
-        json.dumps({"latest": manifest.latest, "snapshots": manifest.snapshots}, indent=2)
+        json.dumps(
+            {"latest": manifest.latest, "snapshots": manifest.snapshots}, indent=2
+        )
     )
 
 
