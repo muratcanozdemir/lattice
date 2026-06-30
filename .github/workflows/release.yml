@@ -46,12 +46,13 @@ jobs:
           enable-cache: true
 
       - name: Generate SBOM
-        run: uvx --from cyclonedx-bom cyclonedx-py environment .venv \
-          --spec-version 1.6 \
-          --output-format XML \
-          --output-file sbom.xml \
-          --pyproject pyproject.toml \
-          --mc-type library
+        run: |
+          uvx --from cyclonedx-bom cyclonedx-py environment .venv \
+            --spec-version 1.6 \
+            --output-format XML \
+            --output-file sbom.xml \
+            --pyproject pyproject.toml \
+            --mc-type library
 
       - name: Upload SBOM artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
