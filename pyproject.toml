@@ -17,13 +17,6 @@ dependencies = [
     "usearch>=2.25.3",
 ]
 
-[project.optional-dependencies]
-dev = [
-    "pytest>=8.0",
-    "pytest-asyncio>=0.24",
-    "respx>=0.21",  # mock httpx at the transport layer, no live API calls in CI
-]
-
 [tool.hatch.build.targets.wheel]
 packages = ["src/lattice"]
 
@@ -34,4 +27,8 @@ testpaths = ["tests"]
 [dependency-groups]
 dev = [
     "mypy>=2.1.0",
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "respx>=0.21",  # mock httpx at the transport layer, no live API calls in CI
+    "black>=25.1.0",
 ]

@@ -6,7 +6,7 @@ import pytest
 import respx
 from pydantic import BaseModel
 
-from lattice import ClientConfig, FailureMode, LLMClient
+from lattice import ClientConfig, ExtractionError, FailureMode, LLMClient
 from lattice.polars_ext import semantic_extract, semantic_extract_async
 
 
@@ -114,6 +114,43 @@ async def test_semantic_extract_graceful_degradation_produces_null_struct_row():
     unpacked = result.unnest("sentiment")
     assert unpacked["label"].to_list() == ["positive", None]
     assert unpacked["confidence"].to_list()[1] is None
+
+
+@pytest.mark.asyncio
+async def test_semantic_extract_raise_mode_lets_all_rows_finish_before_raising():
+    """Under FailureMode.RAISE, one bad row must still surface as
+    ExtractionError - and every other in-flight row's request should be
+    allowed to complete rather than abandoned mid-flight."""
+    df = pl.DataFrame({"text": ["good", "bad", "also good"]})
+    call_count = 0
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal call_count
+        call_count += 1
+        await asyncio.sleep(0.01)
+        body = request.content.decode()
+        if "bad" in body:
+            return httpx.Response(200, json=_chat_response("not json"))
+        return httpx.Response(
+            200, json=_chat_response('{"label": "x", "confidence": 0.5}')
+        )
+
+    with respx.mock(base_url="http://localhost:8080") as mock:
+        mock.post("/v1/chat/completions").mock(side_effect=handler)
+        config = ClientConfig(base_url="http://localhost:8080", model="test-model")
+        async with LLMClient(config) as client:
+            with pytest.raises(ExtractionError):
+                await semantic_extract_async(
+                    df,
+                    text_column="text",
+                    output_column="out",
+                    client=client,
+                    schema=Sentiment,
+                    prompt_template="{text}",
+                    failure_mode=FailureMode.RAISE,
+                    max_validation_retries=0,
+                )
+    assert call_count == 3
 
 
 @pytest.mark.asyncio

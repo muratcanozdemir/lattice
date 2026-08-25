@@ -146,7 +146,7 @@ class LLMClient:
         response_format: dict[str, Any] | None = None,
         extra_body: dict[str, Any] | None = None,
     ) -> ChatResult:
-        prompt_text = " ".join(m.get("content", "") for m in messages)
+        prompt_text = " ".join(m.get("content") or "" for m in messages)
         reserved = float(_estimate_tokens(prompt_text) + (max_tokens or 512))
 
         await self._rpm_bucket.acquire(1.0)
@@ -172,7 +172,7 @@ class LLMClient:
                     await self.metrics.record_failure()
                 raise
 
-        usage_raw = data.get("usage", {})
+        usage_raw = data.get("usage") or {}
         usage = Usage(
             prompt_tokens=usage_raw.get("prompt_tokens", 0),
             completion_tokens=usage_raw.get("completion_tokens", 0),
