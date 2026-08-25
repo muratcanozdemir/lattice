@@ -5,22 +5,25 @@ on:
     tags:
       - "v*"
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v3
+        uses: astral-sh/setup-uv@caf0cab7a618c569241d31dcd442f54681755d39 # v3.2.4
         with:
           enable-cache: true
 
       - name: Install Python
         run: uv python install
 
-      - name: Sync dependencies (including dev group)
-        run: uv sync --all-extras --group dev
+      - name: Sync dependencies
+        run: uv sync
 
       - name: Build package wheels
         run: uv build
@@ -39,17 +42,17 @@ jobs:
     needs: build
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v3
+        uses: astral-sh/setup-uv@caf0cab7a618c569241d31dcd442f54681755d39 # v3.2.4
         with:
           enable-cache: true
 
       - name: Generate SBOM
         run: |
-          uv sync --all-extras
-          uvx --from cyclonedx-bom cyclonedx-py environment .venv \
+          uv sync
+          uvx --from cyclonedx-bom==7.* cyclonedx-py environment .venv \
             --spec-version 1.6 \
             --output-format XML \
             --output-file sbom.xml \

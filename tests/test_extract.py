@@ -150,6 +150,38 @@ async def test_extract_graceful_degradation_returns_none():
 
 
 @pytest.mark.asyncio
+async def test_extract_includes_system_prompt_as_first_message():
+    captured: list[dict] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        import json as _json
+
+        captured.append(_json.loads(request.content))
+        return httpx.Response(
+            200,
+            json=_chat_response('{"category": "diet", "value": "vegan"}'),
+        )
+
+    with respx.mock(base_url="http://localhost:8080") as mock:
+        mock.post("/v1/chat/completions").mock(side_effect=handler)
+        config = ClientConfig(base_url="http://localhost:8080", model="test-model")
+        async with LLMClient(config) as client:
+            await extract(
+                client,
+                prompt="x",
+                schema=Preference,
+                failure_mode=FailureMode.RAISE,
+                system_prompt="Extract preferences precisely.",
+            )
+
+    sent_messages = captured[0]["messages"]
+    assert sent_messages[0] == {
+        "role": "system",
+        "content": "Extract preferences precisely.",
+    }
+
+
+@pytest.mark.asyncio
 async def test_extract_sends_json_schema_response_format():
     captured: list[dict] = []
 

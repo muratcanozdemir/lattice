@@ -58,6 +58,15 @@ def test_read_latest_on_unknown_table_raises(tmp_path):
         read_latest("nonexistent_table", root=tmp_path)
 
 
+def test_list_snapshots_on_unknown_table_returns_empty_list(tmp_path):
+    assert list_snapshots("nonexistent_table", root=tmp_path) == []
+
+
+def test_rollback_on_unknown_table_raises(tmp_path):
+    with pytest.raises(FileNotFoundError):
+        rollback("nonexistent_table", root=tmp_path, to_snapshot="whatever.parquet")
+
+
 def test_tables_are_isolated(tmp_path):
     df_a = pl.DataFrame({"a": [1]})
     df_b = pl.DataFrame({"b": [2]})

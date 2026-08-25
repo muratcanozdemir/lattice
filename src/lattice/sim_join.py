@@ -48,9 +48,12 @@ def _validate_inputs(
     left_embedding_col: str,
     right_embedding_col: str,
     k: int,
+    chunk_size: int,
 ) -> tuple[FloatArray, FloatArray] | None:
     if k < 1:
         raise ValueError(f"k must be >= 1, got {k}")
+    if chunk_size < 1:
+        raise ValueError(f"chunk_size must be >= 1, got {chunk_size}")
     if left.height == 0 or right.height == 0:
         return None
     left_emb: FloatArray = np.asarray(
@@ -230,7 +233,7 @@ def sim_join(
     raising or producing NaN, in both methods.
     """
     validated = _validate_inputs(
-        left, right, left_embedding_col, right_embedding_col, k
+        left, right, left_embedding_col, right_embedding_col, k, chunk_size
     )
     if validated is None:
         return pl.DataFrame()

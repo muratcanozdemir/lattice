@@ -118,7 +118,13 @@ async def semantic_extract_async(
             system_prompt=system_prompt,
         )
 
-    results = await asyncio.gather(*[_one(t) for t in texts])
+    results_or_errors = await asyncio.gather(
+        *[_one(t) for t in texts], return_exceptions=True
+    )
+    for result in results_or_errors:
+        if isinstance(result, BaseException):
+            raise result
+    results = typing.cast("list[BaseModel | None]", results_or_errors)
 
     dicts = [_model_to_dict(r, schema) for r in results]
     struct_series = pl.Series(output_column, dicts, dtype=_struct_dtype(schema))

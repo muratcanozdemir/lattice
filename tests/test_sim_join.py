@@ -106,6 +106,21 @@ def test_sim_join_rejects_invalid_k():
         )
 
 
+def test_sim_join_rejects_non_positive_chunk_size():
+    left = pl.DataFrame({"embedding": [[1.0, 0.0], [0.0, 1.0]]})
+    right = pl.DataFrame({"embedding": [[1.0, 0.0], [0.0, 1.0], [1.0, 1.0]]})
+    for bad_chunk_size in (0, -1):
+        with pytest.raises(ValueError):
+            sim_join(
+                left,
+                right,
+                left_embedding_col="embedding",
+                right_embedding_col="embedding",
+                k=2,
+                chunk_size=bad_chunk_size,
+            )
+
+
 def test_sim_join_rejects_dimension_mismatch():
     left = pl.DataFrame({"embedding": [[1.0, 0.0]]})
     right = pl.DataFrame({"embedding": [[1.0, 0.0, 0.0]]})
