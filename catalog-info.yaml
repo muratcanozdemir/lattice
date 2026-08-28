@@ -1,0 +1,13 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: lattice
+  description: Thin, dependency-minimal Python library for semantic dataframe operations (LLM-backed structured extraction, semantic similarity joins) on top of Polars, against any OpenAI-compatible endpoint.
+  tags: [python, library, llm, polars]
+  annotations:
+    github.com/project-slug: muratcanozdemir/lattice
+    backstage.io/techdocs-ref: dir:.
+spec:
+  type: library
+  owner: user:default/muratcanozdemir
+  lifecycle: experimental
