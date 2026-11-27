@@ -11,7 +11,13 @@ Two methods, chosen explicitly by the caller - no silent magic:
   method="approximate": HNSW via usearch. Genuinely sub-quadratic at
     query time once the index is built. Not exact - HNSW trades a small,
     tunable recall loss for speed; results may omit a true top-k neighbor
-    occasionally, especially at low `expansion_search`.
+    occasionally, especially at low `expansion_search`. The index is
+    built single-threaded by default: usearch's multi-threaded insert
+    produces a different graph on every run, and on small or clustered
+    data that graph sometimes strands a query far from its true
+    neighbour, so results would change between identical calls.
+    `threads=1` makes the approximate path repeatable; `threads=0` (all
+    cores) builds faster on large tables at the cost of that.
 
 Picked usearch over faiss-cpu: usearch ships prebuilt CPU wheels with no
 MKL/OpenBLAS dependency (faiss-cpu typically pulls one in), is
@@ -169,6 +175,7 @@ def _sim_join_approximate(
     right_emb: FloatArray,
     *,
     k: int,
+    threads: int,
 ) -> tuple[list[npt.NDArray[np.int64]], list[FloatArray]]:
     from usearch.index import (
         BatchMatches,
@@ -181,7 +188,7 @@ def _sim_join_approximate(
     dim = right_emb.shape[1]
 
     index: Index = Index(ndim=dim, metric="cos")
-    index.add(np.arange(n_right, dtype=np.int64), right_emb)
+    index.add(np.arange(n_right, dtype=np.int64), right_emb, threads=threads)
 
     matches = index.search(left_emb, eff_k)
     # usearch returns a single Matches for a single query vector and a
@@ -211,6 +218,7 @@ def sim_join(
     k: int,
     method: Literal["exact", "approximate"] = "exact",
     chunk_size: int = _DEFAULT_CHUNK_SIZE,
+    threads: int = 1,
     similarity_col: str = "similarity",
     left_prefix: str = "left_",
     right_prefix: str = "right_",
@@ -224,6 +232,11 @@ def sim_join(
     a small, tunable recall loss for sub-quadratic query time - pick it
     deliberately for large `right` tables, not by default.
 
+    `threads` sets how many threads build the approximate index (ignored
+    by method="exact"). The default 1 gives the same result on every
+    call; 0 uses all cores and builds faster, but the index - and so
+    which neighbours are found - can then differ from run to run.
+
     Output columns are every column of `left` prefixed with `left_prefix`,
     every column of `right` prefixed with `right_prefix`, plus
     `similarity_col`. One output row per (left row, matched right row)
@@ -232,6 +245,8 @@ def sim_join(
     Zero vectors get similarity 0.0 against everything rather than
     raising or producing NaN, in both methods.
     """
+    if threads < 0:
+        raise ValueError(f"threads must be >= 0, got {threads}")
     validated = _validate_inputs(
         left, right, left_embedding_col, right_embedding_col, k, chunk_size
     )
@@ -244,7 +259,9 @@ def sim_join(
             left_emb, right_emb, k=k, chunk_size=chunk_size
         )
     elif method == "approximate":
-        top_idx, top_sim = _sim_join_approximate(left_emb, right_emb, k=k)
+        top_idx, top_sim = _sim_join_approximate(
+            left_emb, right_emb, k=k, threads=threads
+        )
     else:
         raise ValueError(f"method must be 'exact' or 'approximate', got {method!r}")
 

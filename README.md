@@ -71,6 +71,8 @@ matches = sim_join(
 
 # Approximate - HNSW via usearch, for large `right` tables where
 # brute-force compute (not just memory) becomes the bottleneck.
+# The index is built single-threaded so results repeat between calls;
+# pass threads=0 to build on all cores (faster, but not repeatable).
 matches = sim_join(
     queries, documents,
     left_embedding_col="embedding", right_embedding_col="embedding",
