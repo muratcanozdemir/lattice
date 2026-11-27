@@ -240,17 +240,39 @@ def test_sim_join_approximate_finds_exact_match_as_top_result():
 
 
 def test_sim_join_approximate_agrees_with_exact_on_well_separated_clusters():
-    """HNSW recall isn't guaranteed at any k, but on well-separated
-    clusters with generous ef it should agree with brute force - this
-    is a sanity check, not a recall guarantee."""
+    """HNSW recall isn't guaranteed in general, so the data is built to
+    leave no near-ties: 5 clusters along orthogonal axes, each with one
+    "anchor" point exactly on its axis and 39 noisy members around it.
+    Each query is its cluster's axis plus tiny noise, so its true nearest
+    neighbour is the anchor by a wide cosine margin and the approximate
+    path has to find exactly that point every time."""
     rng = np.random.default_rng(123)
-    n_right = 200
+    n_clusters = 5
+    per_cluster = 40
     dim = 16
-    right_vecs = rng.normal(size=(n_right, dim))
-    left_vecs = rng.normal(size=(5, dim))
+    centres = np.eye(dim)[:n_clusters]
 
-    left = pl.DataFrame({"id": list(range(5)), "embedding": left_vecs.tolist()})
-    right = pl.DataFrame({"id": list(range(n_right)), "embedding": right_vecs.tolist()})
+    right_vecs = np.concatenate(
+        [
+            np.vstack([c, c + rng.normal(scale=0.3, size=(per_cluster - 1, dim))])
+            for c in centres
+        ]
+    )
+    # shuffle so anchor ids aren't simply 0, 40, 80, ...
+    perm = rng.permutation(len(right_vecs))
+    right_vecs = right_vecs[perm]
+    anchor_ids = [
+        int(np.flatnonzero(perm == i * per_cluster)[0]) for i in range(n_clusters)
+    ]
+
+    left_vecs = centres + rng.normal(scale=0.01, size=centres.shape)
+
+    left = pl.DataFrame(
+        {"id": list(range(n_clusters)), "embedding": left_vecs.tolist()}
+    )
+    right = pl.DataFrame(
+        {"id": list(range(len(right_vecs))), "embedding": right_vecs.tolist()}
+    )
 
     exact = sim_join(
         left,
@@ -267,13 +289,22 @@ def test_sim_join_approximate_agrees_with_exact_on_well_separated_clusters():
         k=1,
         method="approximate",
     )
-    # top-1 nearest neighbor should agree for at least most of the 5 queries
-    # on a dataset this small - not asserting all 5 to avoid HNSW-recall flakiness.
-    agreement = sum(
-        a == b
-        for a, b in zip(exact["right_id"].to_list(), approx["right_id"].to_list())
-    )
-    assert agreement >= 4
+    assert exact.sort("left_id")["right_id"].to_list() == anchor_ids
+    assert approx.sort("left_id")["right_id"].to_list() == anchor_ids
+
+
+def test_sim_join_rejects_negative_threads():
+    df = pl.DataFrame({"id": [1], "embedding": [[1.0, 0.0]]})
+    with pytest.raises(ValueError, match="threads"):
+        sim_join(
+            df,
+            df,
+            left_embedding_col="embedding",
+            right_embedding_col="embedding",
+            k=1,
+            method="approximate",
+            threads=-1,
+        )
 
 
 def test_sim_join_approximate_caps_k_at_right_height():
